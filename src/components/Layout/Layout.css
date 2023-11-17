@@ -1,0 +1,49 @@
+
+/* Layout.css - Layout specific styles */
+
+.navbar {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    background-color: #007bff;
+    color: white;
+    padding: 0.5rem 0;
+  }
+  
+  .navbar a {
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+  }
+  
+  .navbar a:hover {
+    background-color: #0056b3;
+  }
+  
+  .footer {
+    background-color: #007bff;
+    color: white;
+    text-align: center;
+    padding: 1rem;
+    position: relative;
+    bottom: 0;
+    width: 100%;
+  }
+  
+  .footer p {
+    margin: 0;
+  }
+  
+  /* Additional styling for the links if they are active */
+  .navbar a.active {
+    border-bottom: 2px solid white;
+  }
+  
+  /* Use this class for content that should take the full width of the main area */
+  .full-width-content {
+    width: 100%;
+  }
+  .main {
+    flex: 1;
+    height: 100%;
+  }
