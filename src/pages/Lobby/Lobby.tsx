@@ -1,80 +1,151 @@
-import React, { useEffect, useState } from 'react';
-import { Client } from 'colyseus.js';
+import React, { useEffect, useState, useRef, useContext } from 'react';
+import { Room } from 'colyseus.js';
+import { useNavigate} from 'react-router-dom';
+import "./Lobby.css"
+import { ColyseusContext } from '../../components/ColyseusProvider';
 
-// Define the type for room information
 type RoomInfo = {
   roomId: string;
-  name: string;
   clients: number;
   maxClients: number;
+  metadata: { 
+    name: string,
+    gameState: string;
+  };
 };
+
 
 // Component to render a single room
-const Room: React.FC<{ roomInfo: RoomInfo; joinRoom: (roomId: string) => void }> = ({ roomInfo, joinRoom }) => {
-  return (
-    <div onClick={() => joinRoom(roomInfo.roomId)}>
-      {roomInfo.name} ({roomInfo.clients}/{roomInfo.maxClients})
-    </div>
-  );
-};
-
-// Lobby component
-const Lobby: React.FC = () => {
-  const [rooms, setRooms] = useState<RoomInfo[]>([]);
-
-  // Initialize the Colyseus client
-  const client = new Client('ws://localhost:2567');
-
-  // Fetch the list of rooms
-  const fetchRooms = async () => {
-    try {
-      const availableRooms = await client.getAvailableRooms<RoomInfo>('Tonk_Room');
-      setRooms(availableRooms.map(room => ({
-        roomId: room.roomId,
-        name: "asd",
-        clients: room.clients,
-        maxClients: room.maxClients,
-      })));
-    } catch (error) {
-      console.error("Error fetching rooms:", error);
+const RoomComponent: React.FC<{ roomInfo: RoomInfo; joinRoom: (roomId: string) => void }> = ({ roomInfo, joinRoom }) => {
+  const getRoomClass = (gameState: string) => {
+    switch(gameState) {
+      case 'active':
+        return 'lobby__room--active';
+      case 'waiting':
+        return 'lobby__room--waiting';
+      case 'ended':
+        return 'lobby__room--ended';
+      default:
+        return ''; // default class if no game state matches
     }
   };
 
+  // Get the appropriate class for the current room's game state
+  const roomClass = getRoomClass(roomInfo.metadata.gameState);
+  return (
+    <li className={`lobby__room ${roomClass}`} onClick={() => joinRoom(roomInfo.roomId)} key={roomInfo.roomId}>
+      <div className="room__name">{roomInfo.metadata.name}</div> ({roomInfo.clients}/{roomInfo.maxClients})<div className="room__gamestate">{roomInfo.metadata.gameState}</div>
+    </li>
+  );
+};
+
+const Lobby: React.FC = () => {
+  const [rooms, setRooms] = useState<RoomInfo[]>([]);
+  const [roomName, setRoomName] = useState('');
+  const lobbyRoomRef = useRef<Room<any> | null>(null);
+  // Initialize Colyseus client
+  const {client, setRoom, leaveRoom } = useContext(ColyseusContext);
+  const navigate = useNavigate();
+
   // Function to join a room
   const joinRoom = async (roomId: string) => {
+    if(!client) return;
     try {
-      await client.joinById(roomId);
-      // Handle successful join
+      //first we have to leave a room if we are in one
+      leaveRoom();
+      //then we join the room and send the client on their way
+      await client.joinById(roomId).then(room =>{
+        // Handle successful join
+        console.log(room);
+        setRoom(room);
+        navigate('/test-room')
+      })
+      
     } catch (error) {
       console.error("Error joining room:", error);
     }
   };
 
-  // Function to create a new room
-  const createRoom = async () => {
-    try {
-      await client.create('your_room_type');
-      // Handle room creation and join the room
-      fetchRooms(); // Refresh the room list
-    } catch (error) {
-      console.error("Error creating room:", error);
+  useEffect(() => {
+    if(!client) return;
+    //Join the lobby to recieve realtime updates on rooms.
+    client.joinOrCreate('lobby').then(room => {
+      lobbyRoomRef.current = room;
+      
+
+      //when the lobby sends us a list of rooms we set them
+      room.onMessage('rooms', (rooms: RoomInfo[]) => {
+        setRooms(rooms);
+      });
+
+
+      //handle a new room being created in the lobby
+      room.onMessage("+", ([roomId, newRoom]: [string, RoomInfo]) => {
+        setRooms(prevRooms => {
+          // Check if the room already exists
+          const existingRoomIndex = prevRooms.findIndex(room => room.roomId === roomId);
+          if (existingRoomIndex !== -1) {
+            // Replace the existing room with the new data
+            const updatedRooms = [...prevRooms];
+            updatedRooms[existingRoomIndex] = newRoom;
+            return updatedRooms;
+          } else {
+            // Add the new room to the list of rooms
+            return [...prevRooms, newRoom];
+          }
+        });
+      });
+
+      //if there is a message to remove a room remove it and set the rooms again
+      room.onMessage("-", (roomId: string) => {
+        setRooms(prevRooms => prevRooms.filter(room => room.roomId !== roomId));
+      });
+
+      room.onMessage("__playground_message_types", (message) => {
+        console.log(message);
+      });
+
+    }).catch(e => {
+      console.error("Join lobby error", e);
+    });
+
+    return () => {
+      lobbyRoomRef.current?.leave();
+      // Clear the rooms state when leaving the lobby
+      setRooms([]);
+    };
+  }, []);
+
+  const handleCreateRoom = () => {
+    if (lobbyRoomRef.current && roomName) {
+      lobbyRoomRef.current.send('create', { name: roomName });
+      setRoomName(''); // Reset room name input
     }
   };
 
-  useEffect(() => {
-    fetchRooms();
-  }, []);
-
   return (
-    <div>
-      <div>
+    <div className="lobby__container">
+      <div className='lobby__left'>
+        <h2>Rooms</h2>
+        <ul className='lobby__roomlist'>
         {rooms.length > 0 ? (
-          rooms.map(room => <Room key={room.roomId} roomInfo={room} joinRoom={joinRoom} />)
-        ) : (
-          <p>No rooms available</p>
-        )}
+            rooms.map(room => <RoomComponent key={room.roomId} roomInfo={room} joinRoom={joinRoom} />)
+          ) : (
+            <p>No rooms available</p>
+          )}
+        </ul>
+        <div>
+          <input
+            type="text"
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value)}
+            placeholder="Enter room name"
+          />
+          <button onClick={handleCreateRoom}>Create Room</button>
+        </div>
       </div>
-      <button onClick={createRoom}>Create Room</button>
+      <div className="lobby__right">
+      </div>
     </div>
   );
 };

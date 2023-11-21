@@ -1,13 +1,17 @@
-import React from 'react';
+import React, {useContext} from 'react';
+import { Link } from 'react-router-dom';
+import { ColyseusContext } from '../ColyseusProvider';
 
 // Navbar component
 const Navbar: React.FC = () => {
+  const { room, leaveRoom} = useContext(ColyseusContext);
     return (
       <nav className="navbar">
         {/* Add your navigation items here */}
-        <a href="/">Home</a>
-        <a href="/Tonk">Rooms</a>
-        <a href="/about">About</a>
+        <Link to="/">Lobby</Link>
+        {room!=null && <Link to="/Tonk">TONKTIME</Link>}
+        {room!=null && <Link to="/test-room">About Room {room?.roomId}</Link>}
+        {room!=null && <button onClick={leaveRoom}>leave room {room?.roomId}</button>}
       </nav>
     );
   };
