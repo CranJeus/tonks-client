@@ -7,9 +7,7 @@ const TestRoomPage: React.FC = () => {
   const { room} = useContext(ColyseusContext);
 
   useEffect(() => {
-    if(!room) {
-
-    }
+    if(!room) return;
   }, []);
 
   if (!room) {

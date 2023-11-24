@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useContext } from 'react';
 import { Room } from 'colyseus.js';
-import { useNavigate} from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import "./Lobby.css"
 import { ColyseusContext } from '../../components/ColyseusProvider';
 
@@ -8,17 +8,23 @@ type RoomInfo = {
   roomId: string;
   clients: number;
   maxClients: number;
-  metadata: { 
+  metadata: {
     name: string,
     gameState: string;
   };
 };
+type MessageInfo = {
+  sessionId: string;
+  name: string;
+  message: string;
+}
 
 
 // Component to render a single room
 const RoomComponent: React.FC<{ roomInfo: RoomInfo; joinRoom: (roomId: string) => void }> = ({ roomInfo, joinRoom }) => {
   const getRoomClass = (gameState: string) => {
-    switch(gameState) {
+    if (!gameState) return '';
+    switch (gameState) {
       case 'active':
         return 'lobby__room--active';
       case 'waiting':
@@ -39,44 +45,76 @@ const RoomComponent: React.FC<{ roomInfo: RoomInfo; joinRoom: (roomId: string) =
   );
 };
 
+//component to render a message
+const MessageComponent: React.FC<MessageInfo> = ({ sessionId, name, message }) => {
+  function hashCode(str: string) { // java String#hashCode
+    var hash = 0;
+    console.log(str);
+    for (var i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return hash;
+  }
+
+  function intToRGB(i: number) {
+    var c = (i & 0x00FFFFFF)
+      .toString(16)
+      .toUpperCase();
+
+    return "00000".substring(0, 6 - c.length) + c;
+  }
+
+  return (
+    <li className={'lobby_message'} style={{ backgroundColor: "#" + intToRGB(hashCode(sessionId?sessionId:"chasbbbbbbbbbbbbbbbb")) }}>
+        <p>{name ? name : "Default Name"}</p>
+        <p>{message}</p>
+    </li>
+  );
+};
+
 const Lobby: React.FC = () => {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [roomName, setRoomName] = useState('');
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<MessageInfo[]>([]);
   const lobbyRoomRef = useRef<Room<any> | null>(null);
+  const chatRef = useRef<HTMLUListElement | null>(null);
   // Initialize Colyseus client
-  const {client, setRoom, leaveRoom } = useContext(ColyseusContext);
+  const { client, chatRoom, setRoom, leaveRoom, setChatRoom, leaveChatRoom } = useContext(ColyseusContext);
   const navigate = useNavigate();
 
   // Function to join a room
   const joinRoom = async (roomId: string) => {
-    if(!client) return;
+    if (!client) return;
     try {
       //first we have to leave a room if we are in one
       leaveRoom();
       //then we join the room and send the client on their way
-      await client.joinById(roomId).then(room =>{
+      await client.joinById(roomId).then(room => {
         // Handle successful join
         console.log(room);
         setRoom(room);
         navigate('/test-room')
       })
-      
+
     } catch (error) {
       console.error("Error joining room:", error);
     }
   };
 
   useEffect(() => {
-    if(!client) return;
+    if (!client) return;
     //Join the lobby to recieve realtime updates on rooms.
     client.joinOrCreate('lobby').then(room => {
       lobbyRoomRef.current = room;
-      
+
 
       //when the lobby sends us a list of rooms we set them
       room.onMessage('rooms', (rooms: RoomInfo[]) => {
         setRooms(rooms);
       });
+
+
 
 
       //handle a new room being created in the lobby
@@ -108,19 +146,57 @@ const Lobby: React.FC = () => {
     }).catch(e => {
       console.error("Join lobby error", e);
     });
+    client.joinOrCreate("chat").then(room => {
+      setChatRoom(room);
+
+      room.onMessage("messages", (message) => {
+        console.log(message);
+        setMessages(prevMessages => [...prevMessages, message]);
+      });
+
+    }).catch(e => {
+      console.log("Join Chat Error", e);
+    });
+
 
     return () => {
       lobbyRoomRef.current?.leave();
+      if (chatRoom)
+        leaveChatRoom();
       // Clear the rooms state when leaving the lobby
       setRooms([]);
     };
   }, []);
 
-  const handleCreateRoom = () => {
-    if (lobbyRoomRef.current && roomName) {
-      lobbyRoomRef.current.send('create', { name: roomName });
-      setRoomName(''); // Reset room name input
+  // Scroll to the bottom whenever chatMessages is updated
+  useEffect(() => {
+    if (!chatRef.current) return;
+    chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }, [messages]);
+
+  const handleCreateRoom = async () => {
+    if (client && roomName) {
+      try {
+        //first we have to leave a room if we are in one
+        leaveRoom();
+        //then we join the room and send the client on their way
+        await client.create("Tonk_Room", { name: roomName }).then(room => {
+          // Handle successful join
+          console.log(room);
+          setRoom(room);
+          setRoomName(''); // Reset room name input
+          navigate('/test-room')
+        })
+
+      } catch (error) {
+        console.error("Error joining room:", error);
+      }
     }
+  };
+
+  const handleChatMessage = async () => {
+    if (!chatRoom || !message) return;
+      chatRoom.send("message",message);
   };
 
   return (
@@ -128,8 +204,8 @@ const Lobby: React.FC = () => {
       <div className='lobby__left'>
         <h2>Rooms</h2>
         <ul className='lobby__roomlist'>
-        {rooms.length > 0 ? (
-            rooms.map(room => <RoomComponent key={room.roomId} roomInfo={room} joinRoom={joinRoom} />)
+          {rooms.length > 0 ? (
+            rooms.filter(s => s.metadata.name !== "Chat Room").map(room => <RoomComponent key={room.roomId} roomInfo={room} joinRoom={joinRoom} />)
           ) : (
             <p>No rooms available</p>
           )}
@@ -145,6 +221,26 @@ const Lobby: React.FC = () => {
         </div>
       </div>
       <div className="lobby__right">
+        <h2>Lobby Chat</h2>
+        <ul className="lobby_chat" ref={chatRef}>
+          {messages.map((messageInfo, index) => (
+            <MessageComponent
+              key={index}
+              sessionId={messageInfo.sessionId}
+              name={messageInfo.name}
+              message={messageInfo.message}
+            />
+          ))}
+        </ul>
+        <div>
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Enter a Message"
+          />
+          <button onClick={handleChatMessage}>Send Chat</button>
+        </div>
       </div>
     </div>
   );

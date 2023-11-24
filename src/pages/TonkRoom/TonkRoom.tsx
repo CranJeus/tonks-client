@@ -1,4 +1,4 @@
-import { FC, useContext} from 'react'
+import React, { FC, useContext } from 'react'
 import { Vector3 } from '@babylonjs/core/Maths/math.vector'
 import { Engine, Scene } from 'react-babylonjs'
 import { ColyseusContext } from '../../components/ColyseusProvider';
@@ -8,7 +8,7 @@ import { ColyseusContext } from '../../components/ColyseusProvider';
  * TODO: camera autoAttaching?
  */
 const WithPointerDragBehavior: FC = () => {
-    const {room} = useContext(ColyseusContext)
+  const { room } = useContext(ColyseusContext)
   return (
     <>
       <sphere
@@ -30,24 +30,27 @@ const WithPointerDragBehavior: FC = () => {
   )
 }
 
-const PointerDragBehavior = () => (
-  <div style={{ flex: 1, display: 'flex' }}>
-    <Engine antialias adaptToDeviceRatio canvasId="babylon-js">
-      <Scene>
-        <freeCamera
-          name="camera1"
-          position={new Vector3(0, 5, -10)}
-          setTarget={[Vector3.Zero()]}
-        />
-        <hemisphericLight
-          name="light1"
-          intensity={0.7}
-          direction={Vector3.Up()}
-        />
-        <WithPointerDragBehavior />
-      </Scene>
-    </Engine>
-  </div>
-)
+const PointerDragBehavior: FC = () => {
+  const { room } = useContext(ColyseusContext);
+  return (
+    <div style={{ flex: 1, display: 'flex' }}>
+      <Engine antialias adaptToDeviceRatio canvasId="babylon-js">
+        <Scene>
+          <freeCamera
+            name="camera1"
+            position={new Vector3(0, 5, -10)}
+            setTarget={[Vector3.Zero()]}
+          />
+          <hemisphericLight
+            name="light1"
+            intensity={0.7}
+            direction={Vector3.Up()}
+          />
+          <WithPointerDragBehavior />
+        </Scene>
+      </Engine>
+    </div>
+  );
+};
 
 export default PointerDragBehavior
