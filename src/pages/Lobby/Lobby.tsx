@@ -92,9 +92,9 @@ const Lobby: React.FC = () => {
       //then we join the room and send the client on their way
       await client.joinById(roomId).then(room => {
         // Handle successful join
-        console.log(room);
+        console.log("set the room to "+room);
         setRoom(room);
-        navigate('/test-room')
+        navigate('/test-room');
       })
 
     } catch (error) {
@@ -102,9 +102,37 @@ const Lobby: React.FC = () => {
     }
   };
 
+  // Function to join the chat room
+  const joinChatRoom = async () => {
+    await setChatRoom().then(room => {
+      //set the onMessage handler for the chatroom
+      room.onMessage("messages", (message) => {
+        console.log(message);
+        setMessages(prevMessages => [...prevMessages, message]);
+      });
+    }
+  };
+
+  // Function to join the lobby room
+  const joinLobbyRoom = async () => {
+    if (!client) return;
+    try {
+      //first we have to leave a room if we are in one
+      lobbyRoomRef.current?.leave();
+      //then we join the room and send the client on their way
+      await client.joinOrCreate('lobby').then(room => {
+        lobbyRoomRef.current = room;
+      })
+
+    } catch (error) {
+      console.error("Error joining lobby room:", error);
+    }
+  };
+
   useEffect(() => {
     if (!client) return;
     //Join the lobby to recieve realtime updates on rooms.
+    if(lobbyRoomRef.current) return;
     client.joinOrCreate('lobby').then(room => {
       lobbyRoomRef.current = room;
 
@@ -138,7 +166,7 @@ const Lobby: React.FC = () => {
       room.onMessage("-", (roomId: string) => {
         setRooms(prevRooms => prevRooms.filter(room => room.roomId !== roomId));
       });
-
+      //literally just to remove a warning for message types that should not occur
       room.onMessage("__playground_message_types", (message) => {
         console.log(message);
       });
@@ -146,17 +174,9 @@ const Lobby: React.FC = () => {
     }).catch(e => {
       console.error("Join lobby error", e);
     });
-    client.joinOrCreate("chat").then(room => {
-      setChatRoom(room);
 
-      room.onMessage("messages", (message) => {
-        console.log(message);
-        setMessages(prevMessages => [...prevMessages, message]);
-      });
-
-    }).catch(e => {
-      console.log("Join Chat Error", e);
-    });
+    // Join the chat room
+    joinChatRoom();
 
 
     return () => {
