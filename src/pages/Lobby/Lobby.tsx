@@ -76,11 +76,11 @@ const Lobby: React.FC = () => {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [roomName, setRoomName] = useState('');
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<MessageInfo[]>([]);
+  //const [messages, setMessages] = useState<MessageInfo[]>([]);
   const lobbyRoomRef = useRef<Room<any> | null>(null);
   const chatRef = useRef<HTMLUListElement | null>(null);
   // Initialize Colyseus client
-  const { client, chatRoom, setRoom, leaveRoom, setChatRoom, leaveChatRoom } = useContext(ColyseusContext);
+  const { client, chatRoom, messages, setRoom, leaveRoom, setChatRoom, leaveChatRoom, sendChatMessage } = useContext(ColyseusContext);
   const navigate = useNavigate();
 
   // Function to join a room
@@ -104,13 +104,7 @@ const Lobby: React.FC = () => {
 
   // Function to join the chat room
   const joinChatRoom = async () => {
-    await setChatRoom().then(room => {
-      //set the onMessage handler for the chatroom
-      room.onMessage("messages", (message) => {
-        console.log(message);
-        setMessages(prevMessages => [...prevMessages, message]);
-      });
-    }
+    setChatRoom();
   };
 
   // Function to join the lobby room
@@ -176,13 +170,12 @@ const Lobby: React.FC = () => {
     });
 
     // Join the chat room
-    joinChatRoom();
+    if(!chatRoom)
+      joinChatRoom();
 
 
     return () => {
       lobbyRoomRef.current?.leave();
-      if (chatRoom)
-        leaveChatRoom();
       // Clear the rooms state when leaving the lobby
       setRooms([]);
     };
@@ -215,8 +208,7 @@ const Lobby: React.FC = () => {
   };
 
   const handleChatMessage = async () => {
-    if (!chatRoom || !message) return;
-      chatRoom.send("message",message);
+    sendChatMessage(message);
   };
 
   return (
