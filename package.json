@@ -10,14 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@babylonjs/core": "^6.30.0",
-    "@babylonjs/gui": "^6.30.0",
+    "@react-three/fiber": "^8.15.16",
     "@use-gesture/react": "^10.3.0",
     "colyseus.js": "^0.15.14",
     "react": "^18.2.0",
-    "react-babylonjs": "^3.1.26",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.19.0"
+    "react-router-dom": "^6.19.0",
+    "three": "^0.162.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

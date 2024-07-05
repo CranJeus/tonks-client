@@ -65,9 +65,11 @@ const MessageComponent: React.FC<MessageInfo> = ({ sessionId, name, message }) =
   }
 
   return (
-    <li className={'lobby_message'} style={{ backgroundColor: "#" + intToRGB(hashCode(sessionId?sessionId:"chasbbbbbbbbbbbbbbbb")) }}>
-        <p>{name ? name : "Default Name"}</p>
-        <p>{message}</p>
+    <li className={'lobby_message'} style={{
+      backgroundColor: "#" + intToRGB(hashCode(sessionId ? sessionId : "chasbbbbbbbbbbbbbbbb"))
+    }}>
+      <p>{name ? name : "Default Name"}</p>
+      <p>{message}</p>
     </li>
   );
 };
@@ -76,11 +78,11 @@ const Lobby: React.FC = () => {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [roomName, setRoomName] = useState('');
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<MessageInfo[]>([]);
+  //const [messages, setMessages] = useState<MessageInfo[]>([]);
   const lobbyRoomRef = useRef<Room<any> | null>(null);
   const chatRef = useRef<HTMLUListElement | null>(null);
   // Initialize Colyseus client
-  const { client, chatRoom, setRoom, leaveRoom, setChatRoom, leaveChatRoom } = useContext(ColyseusContext);
+  const { client, messages, setRoom, leaveRoom, sendChatMessage } = useContext(ColyseusContext);
   const navigate = useNavigate();
 
   // Function to join a room
@@ -92,9 +94,9 @@ const Lobby: React.FC = () => {
       //then we join the room and send the client on their way
       await client.joinById(roomId).then(room => {
         // Handle successful join
-        console.log(room);
+        console.log("set the room to " + room);
         setRoom(room);
-        navigate('/test-room')
+        navigate('/test-room');
       })
 
     } catch (error) {
@@ -105,6 +107,7 @@ const Lobby: React.FC = () => {
   useEffect(() => {
     if (!client) return;
     //Join the lobby to recieve realtime updates on rooms.
+    if (lobbyRoomRef.current) return;
     client.joinOrCreate('lobby').then(room => {
       lobbyRoomRef.current = room;
 
@@ -138,7 +141,7 @@ const Lobby: React.FC = () => {
       room.onMessage("-", (roomId: string) => {
         setRooms(prevRooms => prevRooms.filter(room => room.roomId !== roomId));
       });
-
+      //literally just to remove a warning for message types that should not occur
       room.onMessage("__playground_message_types", (message) => {
         console.log(message);
       });
@@ -146,23 +149,10 @@ const Lobby: React.FC = () => {
     }).catch(e => {
       console.error("Join lobby error", e);
     });
-    client.joinOrCreate("chat").then(room => {
-      setChatRoom(room);
-
-      room.onMessage("messages", (message) => {
-        console.log(message);
-        setMessages(prevMessages => [...prevMessages, message]);
-      });
-
-    }).catch(e => {
-      console.log("Join Chat Error", e);
-    });
 
 
     return () => {
       lobbyRoomRef.current?.leave();
-      if (chatRoom)
-        leaveChatRoom();
       // Clear the rooms state when leaving the lobby
       setRooms([]);
     };
@@ -195,8 +185,7 @@ const Lobby: React.FC = () => {
   };
 
   const handleChatMessage = async () => {
-    if (!chatRoom || !message) return;
-      chatRoom.send("message",message);
+    sendChatMessage(message);
   };
 
   return (
