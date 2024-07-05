@@ -3,6 +3,7 @@ import { Room } from 'colyseus.js';
 import { useNavigate } from 'react-router-dom';
 import "./Lobby.css"
 import { ColyseusContext } from '../../components/ColyseusProvider';
+import Chat from '../../components/Chat/Chat';
 
 type RoomInfo = {
   roomId: string;
@@ -13,12 +14,6 @@ type RoomInfo = {
     gameState: string;
   };
 };
-type MessageInfo = {
-  sessionId: string;
-  name: string;
-  message: string;
-}
-
 
 // Component to render a single room
 const RoomComponent: React.FC<{ roomInfo: RoomInfo; joinRoom: (roomId: string) => void }> = ({ roomInfo, joinRoom }) => {
@@ -45,44 +40,12 @@ const RoomComponent: React.FC<{ roomInfo: RoomInfo; joinRoom: (roomId: string) =
   );
 };
 
-//component to render a message
-const MessageComponent: React.FC<MessageInfo> = ({ sessionId, name, message }) => {
-  function hashCode(str: string) { // java String#hashCode
-    var hash = 0;
-    console.log(str);
-    for (var i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return hash;
-  }
-
-  function intToRGB(i: number) {
-    var c = (i & 0x00FFFFFF)
-      .toString(16)
-      .toUpperCase();
-
-    return "00000".substring(0, 6 - c.length) + c;
-  }
-
-  return (
-    <li className={'lobby_message'} style={{
-      backgroundColor: "#" + intToRGB(hashCode(sessionId ? sessionId : "chasbbbbbbbbbbbbbbbb"))
-    }}>
-      <p>{name ? name : "Default Name"}</p>
-      <p>{message}</p>
-    </li>
-  );
-};
-
 const Lobby: React.FC = () => {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [roomName, setRoomName] = useState('');
-  const [message, setMessage] = useState('');
-  //const [messages, setMessages] = useState<MessageInfo[]>([]);
   const lobbyRoomRef = useRef<Room<any> | null>(null);
-  const chatRef = useRef<HTMLUListElement | null>(null);
   // Initialize Colyseus client
-  const { client, messages, setRoom, leaveRoom, sendChatMessage } = useContext(ColyseusContext);
+  const { client, setRoom, leaveRoom,} = useContext(ColyseusContext);
   const navigate = useNavigate();
 
   // Function to join a room
@@ -158,11 +121,7 @@ const Lobby: React.FC = () => {
     };
   }, []);
 
-  // Scroll to the bottom whenever chatMessages is updated
-  useEffect(() => {
-    if (!chatRef.current) return;
-    chatRef.current.scrollTop = chatRef.current.scrollHeight;
-  }, [messages]);
+  
 
   const handleCreateRoom = async () => {
     if (client && roomName) {
@@ -183,11 +142,6 @@ const Lobby: React.FC = () => {
       }
     }
   };
-
-  const handleChatMessage = async () => {
-    sendChatMessage(message);
-  };
-
   return (
     <div className="lobby__container">
       <div className='lobby__left'>
@@ -209,28 +163,7 @@ const Lobby: React.FC = () => {
           <button onClick={handleCreateRoom}>Create Room</button>
         </div>
       </div>
-      <div className="lobby__right">
-        <h2>Lobby Chat</h2>
-        <ul className="lobby_chat" ref={chatRef}>
-          {messages.map((messageInfo, index) => (
-            <MessageComponent
-              key={index}
-              sessionId={messageInfo.sessionId}
-              name={messageInfo.name}
-              message={messageInfo.message}
-            />
-          ))}
-        </ul>
-        <div>
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Enter a Message"
-          />
-          <button onClick={handleChatMessage}>Send Chat</button>
-        </div>
-      </div>
+      <Chat></Chat>
     </div>
   );
 };
