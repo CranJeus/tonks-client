@@ -65,9 +65,11 @@ const MessageComponent: React.FC<MessageInfo> = ({ sessionId, name, message }) =
   }
 
   return (
-    <li className={'lobby_message'} style={{ backgroundColor: "#" + intToRGB(hashCode(sessionId?sessionId:"chasbbbbbbbbbbbbbbbb")) }}>
-        <p>{name ? name : "Default Name"}</p>
-        <p>{message}</p>
+    <li className={'lobby_message'} style={{
+      backgroundColor: "#" + intToRGB(hashCode(sessionId ? sessionId : "chasbbbbbbbbbbbbbbbb"))
+    }}>
+      <p>{name ? name : "Default Name"}</p>
+      <p>{message}</p>
     </li>
   );
 };
@@ -80,7 +82,7 @@ const Lobby: React.FC = () => {
   const lobbyRoomRef = useRef<Room<any> | null>(null);
   const chatRef = useRef<HTMLUListElement | null>(null);
   // Initialize Colyseus client
-  const { client, chatRoom, messages, setRoom, leaveRoom, setChatRoom, leaveChatRoom, sendChatMessage } = useContext(ColyseusContext);
+  const { client, messages, setRoom, leaveRoom, sendChatMessage } = useContext(ColyseusContext);
   const navigate = useNavigate();
 
   // Function to join a room
@@ -92,7 +94,7 @@ const Lobby: React.FC = () => {
       //then we join the room and send the client on their way
       await client.joinById(roomId).then(room => {
         // Handle successful join
-        console.log("set the room to "+room);
+        console.log("set the room to " + room);
         setRoom(room);
         navigate('/test-room');
       })
@@ -102,31 +104,10 @@ const Lobby: React.FC = () => {
     }
   };
 
-  // Function to join the chat room
-  const joinChatRoom = async () => {
-    setChatRoom();
-  };
-
-  // Function to join the lobby room
-  const joinLobbyRoom = async () => {
-    if (!client) return;
-    try {
-      //first we have to leave a room if we are in one
-      lobbyRoomRef.current?.leave();
-      //then we join the room and send the client on their way
-      await client.joinOrCreate('lobby').then(room => {
-        lobbyRoomRef.current = room;
-      })
-
-    } catch (error) {
-      console.error("Error joining lobby room:", error);
-    }
-  };
-
   useEffect(() => {
     if (!client) return;
     //Join the lobby to recieve realtime updates on rooms.
-    if(lobbyRoomRef.current) return;
+    if (lobbyRoomRef.current) return;
     client.joinOrCreate('lobby').then(room => {
       lobbyRoomRef.current = room;
 
@@ -168,10 +149,6 @@ const Lobby: React.FC = () => {
     }).catch(e => {
       console.error("Join lobby error", e);
     });
-
-    // Join the chat room
-    if(!chatRoom)
-      joinChatRoom();
 
 
     return () => {

@@ -1,5 +1,9 @@
+/**
+ * Provides a context for managing Colyseus client and rooms.
+ */
 import React, { createContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { Client, Room } from 'colyseus.js';
+import LoginPage  from '../pages/Login/Login';
 
 interface ColyseusProviderProps {
   children: ReactNode; // Explicitly define the type for children
@@ -11,6 +15,12 @@ type MessageInfo = {
   message: string;
 }
 
+
+interface ChatRoomOptions {
+  name: string;
+};
+
+
 interface IColyseusContext {
   client: Client | null;
   room: Room<any> | null;
@@ -18,7 +28,7 @@ interface IColyseusContext {
   lobbyRoom: Room<any> | null;
   messages: MessageInfo[];
   setRoom: (room: Room<any>) => void;
-  setChatRoom: () => void;
+  setChatRoom: (name: string) => void;
   setLobbyRoom: (room: Room<any>) => void;
   leaveRoom: () => void;
   leaveChatRoom: () => void;
@@ -46,9 +56,11 @@ const defaultState: IColyseusContext = {
 
 export const ColyseusContext = createContext<IColyseusContext>(defaultState);
 const client = new Client('ws://localhost:2567');
-console.log("client created");
 
 export const ColyseusProvider: React.FC<ColyseusProviderProps> = ({ children }) => {
+  //provider will use isloggedIn locally and return the other states to the children
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState(''); // Change username to name
   const [room, setRoom] = useState<Room<any> | null>(null);
   const [chatRoom, setChatRoom] = useState<Room<any> | null>(null);
   const [lobbyRoom, setLobbyRoom] = useState<Room<any> | null>(null);
@@ -58,10 +70,12 @@ export const ColyseusProvider: React.FC<ColyseusProviderProps> = ({ children }) 
   useEffect(() => {
   }, [])
 
-  //when there is a change in the room state, log it
-  useEffect(() => {
-    console.log("set the room", room);
-  }, [room]);
+  const handleLogin = (name:string) => {
+    console.log("name inside function", name);
+    setUserName(name);
+    setIsLoggedIn(true);
+    handleSetChatRoom(name);
+  };
 
   const handleSetRoom = useCallback(async (newRoom: Room<any>) => {
     setRoom(newRoom);
@@ -70,15 +84,16 @@ export const ColyseusProvider: React.FC<ColyseusProviderProps> = ({ children }) 
 
 
   // Function to join the chat room and set up message handling
-  const handleSetChatRoom = useCallback(async () => {
+  const handleSetChatRoom = useCallback(async (name: string) => {
     if (!client) return;
     
     if(chatRoom || connecting) return;
 
     connecting = true;
     try {
+      const options: ChatRoomOptions = { name: name };
       //then we join the room and send the client on their way
-      await client.joinOrCreate("chat").then(room => {
+      await client.joinOrCreate("chat",options).then(room => {
         // Handle successful join
         console.log("set the room to " + room);
         setChatRoom(room);
@@ -132,10 +147,10 @@ export const ColyseusProvider: React.FC<ColyseusProviderProps> = ({ children }) 
   return (
     <ColyseusContext.Provider value={{
       client: client, room, chatRoom, lobbyRoom,messages,
-      setRoom: handleSetRoom, setChatRoom: handleSetChatRoom, setLobbyRoom: handleSetLobbyRoom, 
+      setRoom: handleSetRoom,  setLobbyRoom: handleSetLobbyRoom, setChatRoom: handleSetChatRoom,
       leaveRoom: handleLeaveRoom, leaveChatRoom: handleLeaveChatRoom, leaveLobbyRoom: handleLeaveLobbyRoom, sendChatMessage: handleSendChatMessage
     }}>
-      {children}
+      {isLoggedIn ? children : <LoginPage onLogin={handleLogin} />}
     </ColyseusContext.Provider>
   );
 };
