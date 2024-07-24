@@ -1,4 +1,7 @@
 /* App.css - Global styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 * {
     box-sizing: border-box; /* Ensures padding and borders are included in the total width and height */
@@ -36,4 +39,5 @@ body, html {
   /* Further assuming you have a main content area that should take the remaining space */
   .content {
     flex: 1; /* This will make the content area grow to take up any remaining space */
+    width:100%;
   }
